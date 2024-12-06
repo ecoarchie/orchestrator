@@ -2,12 +2,12 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/docker/docker/client"
-	"github.com/ecoarchie/orchestrator/manager"
-	"github.com/ecoarchie/orchestrator/node"
 	"github.com/ecoarchie/orchestrator/task"
 	"github.com/ecoarchie/orchestrator/worker"
 	"github.com/golang-collections/collections/queue"
@@ -15,68 +15,40 @@ import (
 )
 
 func main() {
-	t := task.Task{
-		ID:     uuid.New(),
-		Name:   "Task-1",
-		State:  task.Pending,
-		Image:  "Image-1",
-		Memory: 1024,
-		Disk:   1,
-	}
+	host := os.Getenv("CUBE_HOST")
+	port, _ := strconv.Atoi(os.Getenv("CUBE_PORT"))
 
-	te := task.TaskEvent{
-		ID:        uuid.New(),
-		State:     task.Pending,
-		Timestamp: time.Now(),
-		Task:      t,
-	}
-
-	fmt.Printf("Task: %v\n", t)
-	fmt.Printf("TaskEvent: %v\n", te)
+	fmt.Println("Starting worker")
 
 	w := worker.Worker{
-		Name:  "worker-1",
 		Queue: *queue.New(),
 		Db:    make(map[uuid.UUID]*task.Task),
 	}
-	fmt.Printf("Worker: %v\n", w)
 
-	w.CollectStats()
-	w.RunTask()
-	w.StartTask()
-	w.StopTask()
-
-	m := manager.Manager{
-		Pending: *queue.New(),
-		TaskDb:  make(map[string][]*task.Task),
-		EventDb: make(map[string][]*task.TaskEvent),
-		Workers: []string{w.Name},
+	api := worker.Api{
+		Address: host,
+		Port:    port,
+		Worker:  &w,
 	}
-	fmt.Printf("Manager: %v\n", m)
 
-	m.SelectWorker()
-	m.UpdateTasks()
-	m.SendWork()
+	go runTasks(&w)
+	api.Start()
+}
 
-	n := node.Node{
-		Name:   "Node-1",
-		Ip:     "192.168.1.1",
-		Cores:  4,
-		Memory: 1024,
-		Disk:   25,
-		Role:   "worker",
+func runTasks(w *worker.Worker) {
+	for {
+		if w.Queue.Len() != 0 {
+			res := w.RunTask()
+			if res.Error != nil {
+				log.Printf("Error running task %v\n", res.Error)
+			}
+		} else {
+			log.Println("No tasks to process for now")
+		}
+
+		log.Println("Sleeping for 10 seconds")
+		time.Sleep(10 * time.Second)
 	}
-	fmt.Printf("Node: %v\n", n)
-
-	fmt.Printf("create a test container\n")
-	dockerTask, createResult := createContainer()
-	if createResult.Error != nil {
-		fmt.Printf("%v", createResult.Error)
-		os.Exit(1)
-	}
-	time.Sleep(time.Second * 5)
-	fmt.Printf("stopping container %s\n", createResult.ContainerId)
-	_ = stopContainer(dockerTask, createResult.ContainerId)
 }
 
 func createContainer() (*task.Docker, *task.DockerResult) {
