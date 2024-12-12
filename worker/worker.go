@@ -85,6 +85,7 @@ func (w *Worker) runTask() task.DockerResult {
 	} else {
 		err := fmt.Errorf("invalid transition from %v to %v", taskPersisted.State, taskQueued.State)
 		res.Error = err
+		return res
 	}
 	return res
 }

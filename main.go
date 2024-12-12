@@ -21,23 +21,57 @@ func main() {
 
 	fmt.Println("Starting worker")
 
-	w := worker.Worker{
+	w1 := worker.Worker{
 		Queue: *queue.New(),
 		Db:    make(map[uuid.UUID]*task.Task),
 	}
 
-	wapi := worker.Api{
+	wapi1 := worker.Api{
 		Address: whost,
 		Port:    wport,
-		Worker:  &w,
+		Worker:  &w1,
 	}
-	go w.RunTasks()
-	go w.CollectStats()
-	go w.UpdateTasks()
-	go wapi.Start()
+	w2 := worker.Worker{
+		Queue: *queue.New(),
+		Db:    make(map[uuid.UUID]*task.Task),
+	}
 
-	workers := []string{fmt.Sprintf("%s:%d", whost, wport)}
-	m := manager.New(workers)
+	wapi2 := worker.Api{
+		Address: whost,
+		Port:    wport + 1,
+		Worker:  &w2,
+	}
+	w3 := worker.Worker{
+		Queue: *queue.New(),
+		Db:    make(map[uuid.UUID]*task.Task),
+	}
+
+	wapi3 := worker.Api{
+		Address: whost,
+		Port:    wport + 2,
+		Worker:  &w3,
+	}
+	go w1.RunTasks()
+	// go w.CollectStats()
+	go w1.UpdateTasks()
+	go wapi1.Start()
+
+	go w2.RunTasks()
+	// go w.CollectStats()
+	go w2.UpdateTasks()
+	go wapi2.Start()
+
+	go w3.RunTasks()
+	// go w.CollectStats()
+	go w3.UpdateTasks()
+	go wapi3.Start()
+
+	workers := []string{
+		fmt.Sprintf("%s:%d", whost, wport),
+		fmt.Sprintf("%s:%d", whost, wport+1),
+		fmt.Sprintf("%s:%d", whost, wport+2),
+	}
+	m := manager.New(workers, "roundrobin")
 
 	mapi := manager.Api{
 		Address: mhost,
@@ -51,24 +85,6 @@ func main() {
 
 	mapi.Start()
 }
-
-/*
-func runTasks(w *worker.Worker) {
-	for {
-		if w.Queue.Len() != 0 {
-			res := w.RunTask()
-			if res.Error != nil {
-				log.Printf("Error running task %v\n", res.Error)
-			}
-		} else {
-			log.Println("No tasks to process for now")
-		}
-
-		log.Println("Sleeping for 10 seconds")
-		time.Sleep(10 * time.Second)
-	}
-}
-*/
 
 func createContainer() (*task.Docker, *task.DockerResult) {
 	c := task.Config{
