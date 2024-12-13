@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/ecoarchie/orchestrator/stats"
 	"github.com/ecoarchie/orchestrator/task"
 	"github.com/go-chi/chi"
 	"github.com/google/uuid"
@@ -73,6 +74,13 @@ func (a *Api) StopTaskHandler(w http.ResponseWriter, r *http.Request) {
 
 func (a *Api) GetStatsHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(a.Worker.Stats)
+	if a.Worker.Stats != nil {
+		w.WriteHeader(200)
+		json.NewEncoder(w).Encode(*a.Worker.Stats)
+		return
+	}
+
+	w.WriteHeader(200)
+	stats := stats.GetStats()
+	json.NewEncoder(w).Encode(stats)
 }

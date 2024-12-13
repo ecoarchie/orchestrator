@@ -6,6 +6,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/ecoarchie/orchestrator/stats"
 	"github.com/ecoarchie/orchestrator/task"
 	"github.com/golang-collections/collections/queue"
 	"github.com/google/uuid"
@@ -22,14 +23,14 @@ type Worker struct {
 	Name      string
 	Queue     queue.Queue
 	Db        map[uuid.UUID]*task.Task
-	Stats     *Stats
+	Stats     *stats.Stats
 	TaskCount int
 }
 
 func (w *Worker) CollectStats() {
 	for {
 		log.Println("[Worker]: Collecting stats")
-		w.Stats = GetStats()
+		w.Stats = stats.GetStats()
 		w.Stats.TaskCount = w.TaskCount
 		time.Sleep(15 * time.Second)
 	}

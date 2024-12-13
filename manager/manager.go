@@ -54,9 +54,11 @@ func New(workers []string, schedulerType string) *Manager {
 	var s scheduler.Scheduler
 	switch schedulerType {
 	case "roundrobin":
-		s = &scheduler.RoundRobin{}
+		s = &scheduler.RoundRobin{Name: "roundrobin"}
+	case "epvm":
+		s = &scheduler.Epvm{Name: "epvm"}
 	default:
-		s = &scheduler.RoundRobin{}
+		s = &scheduler.RoundRobin{Name: "roundrobin"}
 	}
 	return &Manager{
 		Pending:       *queue.New(),
