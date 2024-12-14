@@ -9,8 +9,6 @@ import (
 	"github.com/ecoarchie/orchestrator/manager"
 	"github.com/ecoarchie/orchestrator/task"
 	"github.com/ecoarchie/orchestrator/worker"
-	"github.com/golang-collections/collections/queue"
-	"github.com/google/uuid"
 )
 
 func main() {
@@ -21,35 +19,26 @@ func main() {
 
 	fmt.Println("Starting worker")
 
-	w1 := worker.Worker{
-		Queue: *queue.New(),
-		Db:    make(map[uuid.UUID]*task.Task),
-	}
+	w1 := worker.New("worker-1", "memory")
+	w2 := worker.New("worker-2", "memory")
+	w3 := worker.New("worker-3", "memory")
 
 	wapi1 := worker.Api{
 		Address: whost,
 		Port:    wport,
-		Worker:  &w1,
-	}
-	w2 := worker.Worker{
-		Queue: *queue.New(),
-		Db:    make(map[uuid.UUID]*task.Task),
+		Worker:  w1,
 	}
 
 	wapi2 := worker.Api{
 		Address: whost,
 		Port:    wport + 1,
-		Worker:  &w2,
-	}
-	w3 := worker.Worker{
-		Queue: *queue.New(),
-		Db:    make(map[uuid.UUID]*task.Task),
+		Worker:  w2,
 	}
 
 	wapi3 := worker.Api{
 		Address: whost,
 		Port:    wport + 2,
-		Worker:  &w3,
+		Worker:  w3,
 	}
 	go w1.RunTasks()
 	// go w.CollectStats()
@@ -71,7 +60,7 @@ func main() {
 		fmt.Sprintf("%s:%d", whost, wport+1),
 		fmt.Sprintf("%s:%d", whost, wport+2),
 	}
-	m := manager.New(workers, "epvm")
+	m := manager.New(workers, "epvm", "memory")
 
 	mapi := manager.Api{
 		Address: mhost,

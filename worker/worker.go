@@ -7,9 +7,9 @@ import (
 	"time"
 
 	"github.com/ecoarchie/orchestrator/stats"
+	"github.com/ecoarchie/orchestrator/store"
 	"github.com/ecoarchie/orchestrator/task"
 	"github.com/golang-collections/collections/queue"
-	"github.com/google/uuid"
 )
 
 /*
@@ -22,9 +22,24 @@ scheduling tasks
 type Worker struct {
 	Name      string
 	Queue     queue.Queue
-	Db        map[uuid.UUID]*task.Task
+	Db        store.Store
 	Stats     *stats.Stats
 	TaskCount int
+}
+
+func New(name, taskDbType string) *Worker {
+	w := Worker{
+		Name:  name,
+		Queue: *queue.New(),
+	}
+
+	var s store.Store
+	switch taskDbType {
+	case "memory":
+		s = store.NewInMemoryTaskStore()
+	}
+	w.Db = s
+	return &w
 }
 
 func (w *Worker) CollectStats() {
@@ -60,11 +75,20 @@ func (w *Worker) runTask() task.DockerResult {
 	}
 
 	taskQueued := t.(task.Task)
-	taskPersisted := w.Db[taskQueued.ID]
-	if taskPersisted == nil {
-		taskPersisted = &taskQueued
-		w.Db[taskQueued.ID] = &taskQueued
+	err := w.Db.Put(taskQueued.ID.String(), &taskQueued)
+	if err != nil {
+		msg := fmt.Errorf("error stopping task %s: %v", taskQueued.ID.String(), err)
+		log.Println(msg)
+		return task.DockerResult{Error: msg}
 	}
+
+	queuedTask, err := w.Db.Get(taskQueued.ID.String())
+	if err != nil {
+		msg := fmt.Errorf("error getting task %s from database: %v", taskQueued.ID.String(), err)
+		return task.DockerResult{Error: msg}
+	}
+
+	taskPersisted := *queuedTask.(*task.Task)
 
 	var res task.DockerResult
 	if task.ValidStateTransition(taskPersisted.State, taskQueued.State) {
@@ -99,13 +123,13 @@ func (w *Worker) StartTask(t task.Task) task.DockerResult {
 	if res.Error != nil {
 		log.Printf("[Worker]: ERROR running container %v: %v\n", t.ContainerID, res.Error)
 		t.State = task.Failed
-		w.Db[t.ID] = &t
+		w.Db.Put(t.ID.String(), &t)
 		return res
 	}
 
 	t.ContainerID = res.ContainerId
 	t.State = task.Running
-	w.Db[t.ID] = &t
+	w.Db.Put(t.ID.String(), &t)
 
 	return res
 }
@@ -121,7 +145,7 @@ func (w *Worker) StopTask(t task.Task) task.DockerResult {
 
 	t.FinishTime = time.Now().UTC()
 	t.State = task.Completed
-	w.Db[t.ID] = &t
+	w.Db.Put(t.ID.String(), &t)
 	log.Printf("[Worker]: Stopped and removed container %v for task %v\n", t.ContainerID, t.ID)
 
 	return res
@@ -132,11 +156,12 @@ func (w *Worker) AddTask(t task.Task) {
 }
 
 func (w *Worker) GetTasks() []*task.Task {
-	tasks := []*task.Task{}
-	for _, t := range w.Db {
-		tasks = append(tasks, t)
+	taskList, err := w.Db.List()
+	if err != nil {
+		log.Printf("error getting list of tasks: %v\n", err)
+		return nil
 	}
-	return tasks
+	return taskList.([]*task.Task)
 }
 
 func (w *Worker) InspectTask(t task.Task) task.DockerInspectResponse {
@@ -156,7 +181,12 @@ func (w *Worker) UpdateTasks() {
 }
 
 func (w *Worker) updateTasks() {
-	for id, t := range w.Db {
+	tasks, err := w.Db.List()
+	if err != nil {
+		log.Printf("error getting list of tasks: %v\n", err)
+		return
+	}
+	for id, t := range tasks.([]*task.Task) {
 		if t.State == task.Running {
 			resp := w.InspectTask(*t)
 			if resp.Error != nil {
@@ -165,14 +195,15 @@ func (w *Worker) updateTasks() {
 
 			if resp.Container == nil {
 				log.Printf("[Worker]: No container for running task %s\n", id)
-				w.Db[id].State = task.Failed
+				t.State = task.Failed
 			}
 
 			if resp.Container.State.Status == "exited" {
 				log.Printf("[Worker]: Container for task %s in non running state %s", id, resp.Container.State.Status)
-				w.Db[id].State = task.Failed
+				t.State = task.Failed
 			}
-			w.Db[id].HostPorts = resp.Container.NetworkSettings.NetworkSettingsBase.Ports
+			t.HostPorts = resp.Container.NetworkSettings.NetworkSettingsBase.Ports
+			w.Db.Put(t.ID.String(), t)
 		}
 	}
 }
