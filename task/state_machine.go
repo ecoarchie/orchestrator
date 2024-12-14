@@ -30,3 +30,7 @@ func Contains(states []State, state State) bool {
 func ValidStateTransition(src State, dst State) bool {
 	return Contains(stateTransitionMap[src], dst)
 }
+
+func (s State) String() []string {
+	return []string{"Pending", "Scheduled", "Running", "Completed", "Failed"}
+}
