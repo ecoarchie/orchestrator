@@ -10,7 +10,10 @@ require (
 	github.com/google/uuid v1.6.0
 )
 
-require golang.org/x/net v0.32.0 // indirect
+require (
+	github.com/boltdb/bolt v1.3.1 // indirect
+	golang.org/x/net v0.32.0 // indirect
+)
 
 require (
 	github.com/Microsoft/go-winio v0.4.14 // indirect

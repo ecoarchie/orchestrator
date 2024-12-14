@@ -5,9 +5,7 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/docker/docker/client"
 	"github.com/ecoarchie/orchestrator/manager"
-	"github.com/ecoarchie/orchestrator/task"
 	"github.com/ecoarchie/orchestrator/worker"
 )
 
@@ -19,9 +17,9 @@ func main() {
 
 	fmt.Println("Starting worker")
 
-	w1 := worker.New("worker-1", "memory")
-	w2 := worker.New("worker-2", "memory")
-	w3 := worker.New("worker-3", "memory")
+	w1 := worker.New("worker-1", "persistent")
+	w2 := worker.New("worker-2", "persistent")
+	w3 := worker.New("worker-3", "persistent")
 
 	wapi1 := worker.Api{
 		Address: whost,
@@ -41,17 +39,14 @@ func main() {
 		Worker:  w3,
 	}
 	go w1.RunTasks()
-	// go w.CollectStats()
 	go w1.UpdateTasks()
 	go wapi1.Start()
 
 	go w2.RunTasks()
-	// go w.CollectStats()
 	go w2.UpdateTasks()
 	go wapi2.Start()
 
 	go w3.RunTasks()
-	// go w.CollectStats()
 	go w3.UpdateTasks()
 	go wapi3.Start()
 
@@ -73,39 +68,4 @@ func main() {
 	go m.DoHealthChecks()
 
 	mapi.Start()
-}
-
-func createContainer() (*task.Docker, *task.DockerResult) {
-	c := task.Config{
-		Name:  "test-container-1",
-		Image: "postgres:13",
-		Env: []string{
-			"POSTGRES_USER=cube",
-			"POSTGRES_PASSWORD=secret",
-		},
-	}
-	dc, _ := client.NewClientWithOpts(client.FromEnv)
-	d := task.Docker{
-		Client: dc,
-		Config: c,
-	}
-	result := d.Run()
-	if result.Error != nil {
-		fmt.Printf("%v\n", result.Error)
-		return nil, nil
-	}
-	fmt.Printf(
-		"Container %s is running with config %v\n", result.ContainerId, c)
-	return &d, &result
-}
-
-func stopContainer(d *task.Docker, id string) *task.DockerResult {
-	result := d.Stop(id)
-	if result.Error != nil {
-		fmt.Printf("%v\n", result.Error)
-		return nil
-	}
-	fmt.Printf(
-		"Container %s has been stopped and removed\n", result.ContainerId)
-	return &result
 }

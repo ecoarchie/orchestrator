@@ -34,9 +34,16 @@ func New(name, taskDbType string) *Worker {
 	}
 
 	var s store.Store
+	var err error
 	switch taskDbType {
 	case "memory":
 		s = store.NewInMemoryTaskStore()
+	case "persistent":
+		filename := fmt.Sprintf("%s_tasks.db", name)
+		s, err = store.NewTaskStore(filename, 0o600, "tasks")
+		if err != nil {
+			log.Printf("unable to create new task store: %v", err)
+		}
 	}
 	w.Db = s
 	return &w
@@ -194,12 +201,12 @@ func (w *Worker) updateTasks() {
 			}
 
 			if resp.Container == nil {
-				log.Printf("[Worker]: No container for running task %s\n", id)
+				log.Printf("[Worker]: No container for running task %d\n", id)
 				t.State = task.Failed
 			}
 
 			if resp.Container.State.Status == "exited" {
-				log.Printf("[Worker]: Container for task %s in non running state %s", id, resp.Container.State.Status)
+				log.Printf("[Worker]: Container for task %d in non running state %s", id, resp.Container.State.Status)
 				t.State = task.Failed
 			}
 			t.HostPorts = resp.Container.NetworkSettings.NetworkSettingsBase.Ports

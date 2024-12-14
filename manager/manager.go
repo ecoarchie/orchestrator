@@ -38,8 +38,6 @@ type Manager struct {
 }
 
 func New(workers []string, schedulerType string, dbType string) *Manager {
-	// taskDb := make(map[uuid.UUID]*task.Task)
-	// eventDb := make(map[uuid.UUID]*task.TaskEvent)
 	workerTaskMap := make(map[string][]uuid.UUID)
 	taskWorkerMap := make(map[uuid.UUID]string)
 
@@ -72,10 +70,20 @@ func New(workers []string, schedulerType string, dbType string) *Manager {
 
 	var ts store.Store
 	var es store.Store
+	var err error
 	switch dbType {
 	case "memory":
 		ts = store.NewInMemoryTaskStore()
 		es = store.NewInMemoryTaskEventStore()
+	case "persistent":
+		ts, err = store.NewTaskStore("tasks.db", 0o600, "tasks")
+		if err != nil {
+			log.Fatalf("unable to create task store: %v", err)
+		}
+		es, err = store.NewEventStore("events.db", 0o600, "events")
+		if err != nil {
+			log.Fatalf("unable to create task event store: %v", err)
+		}
 	}
 
 	m.TaskDb = ts
