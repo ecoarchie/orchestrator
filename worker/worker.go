@@ -97,6 +97,10 @@ func (w *Worker) runTask() task.DockerResult {
 
 	taskPersisted := *queuedTask.(*task.Task)
 
+	if taskPersisted.State == task.Completed {
+		return w.StopTask(taskPersisted)
+	}
+
 	var res task.DockerResult
 	if task.ValidStateTransition(taskPersisted.State, taskQueued.State) {
 		switch taskQueued.State {

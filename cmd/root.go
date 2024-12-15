@@ -12,13 +12,16 @@ import (
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "orca",
-	Short: "A brief description of your application",
-	Long: `A longer description that spans multiple lines and likely contains
-examples and usage of using your application. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+	Short: "Orchestrator written in educational purposes",
+	Long: `Orca is a orchestrator built with Manager-Worker architecture pattern.
+	The purpose is to orchestrate docker containers (aka Tasks), assigned with Manager,
+	implementing various scheduler algorithms to choose suitable worker.
+	Stack:
+	- Golang
+	- Docker SDK API for managing containers
+	- BoltDB for persistent storage
+	- Cobra cli framework
+	- Chi library for routing`,
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
 	// Run: func(cmd *cobra.Command, args []string) { },
